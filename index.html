@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>GitHub Issue Blog</title>
+  <title>Beer Memo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
   body {
@@ -16,7 +16,17 @@
 
   h1 {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
+  }
+
+  /* 🔍 検索ボックス */
+  #search {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1em;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-bottom: 30px;
   }
 
   .post {
@@ -43,7 +53,6 @@
     margin-top: 10px;
   }
 
-  /* 画像をページ内に収める */
   .post-body img {
     max-width: 100%;
     height: auto;
@@ -52,7 +61,6 @@
     border-radius: 8px;
   }
 
-  /* コードブロックの見た目改善 */
   pre {
     background: #272822;
     color: #f8f8f2;
@@ -75,7 +83,11 @@
 </head>
 <body>
 
-<h1>GitHub Issue Blog</h1>
+<h1>Beer Memo</h1>
+
+<!-- 🔍 検索ボックス -->
+<input id="search" placeholder="検索ワードを入力..." />
+
 <div id="posts"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -83,10 +95,19 @@
   const user = "m-owada";
   const repo = "blog";
 
+  let allIssues = []; // ← 全件保存して検索に使う
+
   async function loadIssues() {
     const res = await fetch(`https://api.github.com/repos/${user}/${repo}/issues`);
-    const issues = await res.json();
+    allIssues = await res.json();
+    allIssues = allIssues.reverse().map((issue, index) => ({
+      ...issue,
+      serial: index + 1
+    }));
+    render(allIssues.reverse());
+  }
 
+  function render(issues) {
     const container = document.getElementById("posts");
     container.innerHTML = "";
 
@@ -95,15 +116,31 @@
       div.className = "post";
 
       div.innerHTML = `
-        <div class="post-title">${issue.title}</div>
+        <div class="post-title">#${issue.serial} ${issue.title}</div>
         <div class="post-date">${new Date(issue.created_at).toLocaleDateString()}</div>
-        <div class="post-body">${marked.parse(issue.body || "")}</div>
+        <div class="post-body">${enableLazyLoad(marked.parse((issue.body || "").replace(/\n/g, "  \n")))}</div>
         <a href="${issue.html_url}" target="_blank">GitHub で読む</a>
       `;
 
       container.appendChild(div);
     });
   }
+
+  function enableLazyLoad(html) {
+    return html.replace(/<img /g, '<img loading="lazy" ');
+  }
+
+  // 🔍 検索イベント
+  document.getElementById("search").addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+
+    const filtered = allIssues.filter(issue =>
+      issue.title.toLowerCase().includes(q) ||
+      (issue.body || "").toLowerCase().includes(q)
+    );
+
+    render(filtered);
+  });
 
   loadIssues();
 </script>
